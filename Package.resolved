@@ -1,0 +1,43 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "LASwift",
+        "repositoryURL": "https://github.com/alexandertar/LASwift",
+        "state": {
+          "branch": null,
+          "revision": "34bba6eaac5c030aa065f255e4392d2d8cc41ba5",
+          "version": "0.2.5"
+        }
+      },
+      {
+        "package": "Nimble",
+        "repositoryURL": "https://github.com/Quick/Nimble.git",
+        "state": {
+          "branch": null,
+          "revision": "7a46a5fc86cb917f69e3daf79fcb045283d8f008",
+          "version": "8.1.2"
+        }
+      },
+      {
+        "package": "Quick",
+        "repositoryURL": "https://github.com/Quick/Quick.git",
+        "state": {
+          "branch": null,
+          "revision": "09b3becb37cb2163919a3842a4c5fa6ec7130792",
+          "version": "2.2.1"
+        }
+      },
+      {
+        "package": "SigmaSwiftStatistics",
+        "repositoryURL": "https://github.com/evgenyneu/SigmaSwiftStatistics",
+        "state": {
+          "branch": null,
+          "revision": "d36db09f97a1739edc8c63897220c7ecbb5de684",
+          "version": "9.0.2"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
