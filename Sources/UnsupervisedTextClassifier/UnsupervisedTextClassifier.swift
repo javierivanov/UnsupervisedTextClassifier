@@ -225,7 +225,7 @@ public class UnsupervisedTextClassifier {
             .collect()
             .sinkStream { simils in
                 defer { sema.signal() }
-                let filteredSimils = simils.filter {$0.similarity < 0.5}
+                let filteredSimils = simils.filter {$0.similarity < result.maxSimilarity }
                 let correlation = result.correlation![corrIdx]
                 let tokens = (a: result.keywords[correlation.tokens.a], b: result.keywords[correlation.tokens.b])
                 
@@ -547,14 +547,15 @@ public struct Cluster {
     var colsAvg: Vector?
     public var correlation: [CorrelationResult]?
     var q: Double?
+    var maxSimilarity: Double
     
-    public init(articles: [Article]) {
+    public init(articles: [Article], maxSimilarity: Double = 0.5) {
         let all_keywords = articles.map(\.keywords).reduce(Set<String>(), { prev, curr in
             var next = prev
             curr?.forEach {next.insert($0)}
             return next
         }).sorted()
-        
+        self.maxSimilarity = maxSimilarity
         self.articles = articles
         self.matrix = UnsupervisedTextClassifier.buildMatrix(textsMap: articles.map {$0.keywords ?? []}, keywords: all_keywords)
         self.keywords = all_keywords
