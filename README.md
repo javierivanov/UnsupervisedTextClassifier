@@ -11,7 +11,7 @@ It makes use of the Combine Framework provided by the Apple SDK.
 
 A protocol Article is provided to interoperate with the package functions. It can be used as shown:
 
-```
+```swift
 protocol Article: Codable {
     var text: String? {get set}
     var keywords: [String]? {get set}
@@ -20,7 +20,7 @@ protocol Article: Codable {
 
 ```
 
-```
+```swift
 struct TestArticle: Article {
     var text: String?
     var keywords: [String]?
