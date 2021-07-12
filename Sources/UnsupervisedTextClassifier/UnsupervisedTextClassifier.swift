@@ -237,7 +237,6 @@ public class UnsupervisedTextClassifier {
                     ans = SegmentResultGroup(correlation: correlation, tokens: tokens, resultGroup: filteredSimils)
                     filteredSimils.forEach { rows.remove($0.row) }
                 }
-                
             }
         sema.wait()
         conf.rows = rows
