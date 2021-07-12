@@ -33,7 +33,7 @@ struct TestArticle: Article {
 
 The Cluster struct:
 
-```
+```swift
 struct Cluster {
     init(articles: [Article], maxSimilarity: Double = 0.5)
     var publisher: AnyPublisher<SegmentResultGroup, Never>
@@ -44,8 +44,10 @@ The Cluster struct publishes the `SegmentResultGroup` which contains the grouppe
 
 #### Articles ingestion example
 
-```
+```swift
 @Published var segmentResults: [SegmentResultGroup] = []
+
+...
 
 let sampleHeadlines = ["How many people can I have a drink with? And other questions",
                        "Full interview: Hillary Clinton, January 17",
@@ -72,7 +74,7 @@ cluster
 
 Each `SegmentResultGroup` represents a cluster with similar elements based on keywords matching.
 
-```
+```swift
 struct ResultGroup: Identifiable {
     public var similarity: Double
     public var article: Article
