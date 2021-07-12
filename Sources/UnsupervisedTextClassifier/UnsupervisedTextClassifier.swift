@@ -65,8 +65,9 @@ public class UnsupervisedTextClassifier {
      
      */
     public static func cov(vect1: Vector, vect2: Vector, vect1Avg: Double, vect2Avg: Double) -> Double {
-        let Exy = zip(vect1, vect2).map { $0 * $1 }.reduce(0.0, +) / Double(vect1.count)
-        return Exy - vect1Avg*vect2Avg
+        zip(vect1, vect2).map { (a: Double, b: Double) -> Double in
+            (a - vect1Avg) * (b - vect2Avg)
+        }.reduce(0.0, +) / Double(vect1.count - 1)
     }
     
 
@@ -176,16 +177,14 @@ public class UnsupervisedTextClassifier {
                         let tp = Double(zip(target_vector, sample_vector).filter { $0 > 0 && $1 > 0 }.count)
                         let fp = Double(zip(target_vector, sample_vector).filter { $0 == 0.0 && $1 > 0 }.count)
                         let fn = Double(zip(target_vector, sample_vector).filter { $0 > 0 && $1 == 0.0 }.count)
+                        
 //                        let tn = Double(zip(target_vector, sample_vector).filter { $0 == 0 && $1 == 0 }.count )
-
 //                        let accuracy_inv = 1.0 - (tp + tn) / (tp + tn + fp + fn)
                         
                         let f1_score_inv = 1.0 - (tp / (tp + (fp + fn)/2.0))
                         
 //                        let mcc_1 = ((tp * tn) - (fp * fn))
-                        
 //                        let mcc_2 = sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-                        
 //                        let mcc = mcc_1 / mcc_2
                         
                         guard sample_vector.count > 0 else {
