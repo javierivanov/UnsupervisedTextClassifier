@@ -128,6 +128,24 @@ public class UnsupervisedTextClassifier {
         }
         return Matrix(newMatrix)
     }
+    
+    public static func filterRows(matrix: Matrix, rows: [Int]) -> Matrix {
+        var newMatrix: [Vector] = []
+        for row in rows {
+            newMatrix.append(matrix[row: row])
+        }
+        return Matrix(newMatrix)
+    }
+    
+    public static func selectRows(matrix: Matrix, cols: (x: Int, y: Int)) -> [Int] {
+        var rows: [Int] = []
+        for row in 0..<matrix.rows {
+            if matrix[row: row][cols.x] == 1 && matrix[row: row][cols.y] == 1 {
+                rows.append(row)
+            }
+        }
+        return rows
+    }
 
     
     public static func avgMatrixToVector(matrix: Matrix) -> Vector {
@@ -140,6 +158,52 @@ public class UnsupervisedTextClassifier {
         return out.map {$0 / Double(matrix.rows)}
     }
     
+    
+    static func sortingResults(result: Cluster) -> AnyPublisher<SegmentResultGroup, Never> {
+        guard let correlations = result.correlation else {fatalError()}
+        let tasks = correlations.map { correlation -> Deferred<Future<SegmentResultGroup, Never>> in
+            Deferred {
+                Future() { promise in
+                    DispatchQueue.global(qos: .userInteractive).async {
+                        // Target Group AVG with similar vectors.
+                        let (token_x, token_y) = correlation.tokens
+                        
+                        let targetRows = Self.selectRows(matrix: result.matrix, cols: (token_x, token_y))
+                        let targetMatrix = Self.filterRows(matrix: result.matrix, rows: targetRows)
+                        let target_vector = Self.avgMatrixToVector(matrix: targetMatrix)
+                        
+                        let groups = targetRows.map { row -> ResultGroup in
+                            let sample_pair = result.matrix[row: row].enumerated()
+                                //.filter {target_offsets.contains($0.offset)}
+                                //.filter {$0.element != 0.0 || $0.offset == token_x || $0.offset == token_y}
+                            
+                            
+                            let sample_vector = sample_pair.map(\.element)
+                            //print("sample_vector: \(sample_vector)")
+                            
+                            let tp = Double(zip(target_vector, sample_vector).filter { $0 > 0 && $1 > 0 }.count)
+                            let fp = Double(zip(target_vector, sample_vector).filter { $0 == 0.0 && $1 > 0 }.count)
+                            let fn = Double(zip(target_vector, sample_vector).filter { $0 > 0 && $1 == 0.0 }.count)
+                            
+    //                        let tn = Double(zip(target_vector, sample_vector).filter { $0 == 0 && $1 == 0 }.count )
+    //                        let accuracy_inv = 1.0 - (tp + tn) / (tp + tn + fp + fn)
+                            
+                            let f1_score_inv = 1.0 - (tp / (tp + (fp + fn)/2.0))
+                            
+                            return ResultGroup(similarity: f1_score_inv, article: result.articles[row], row: row)
+                        }.sorted(by: {$0.similarity < $1.similarity})
+                        
+                        
+                        let tokens = (a: result.keywords[correlation.tokens.a], b: result.keywords[correlation.tokens.b])
+                        let segment = SegmentResultGroup(correlation: correlation, tokens: tokens, resultGroup: groups)
+                        promise(.success(segment))
+                    }
+                }
+            }
+        }
+        
+        return Publishers.MergeMany(tasks).eraseToAnyPublisher()
+    }
     
     
     typealias SortingClosestConf = (corrIdx: Int, rows: Set<Int>)
@@ -242,6 +306,78 @@ public class UnsupervisedTextClassifier {
         conf.rows = rows
         conf.corrIdx += 1
         return (conf: conf, output: ans)
+    }
+
+    
+//     MARK: - Sorting Results with repetition -
+    static func sortingResults(result: Cluster, tokenIndex: Int) -> AnyPublisher<ResultGroup, Never> {
+        guard tokenIndex < result.correlation!.count else {
+            fatalError()
+        }
+        let (token_x, token_y) = result.correlation![tokenIndex].tokens
+        let targetMatrix = Self.filterRows(matrix: result.matrix, cols: (token_x, token_y))
+        let target_vector = Self.avgMatrixToVector(matrix: targetMatrix)
+        
+        let rows = 0..<result.matrix.rows
+        
+        let tasks = rows.map { row -> Deferred<Future<ResultGroup,Never>> in
+            return Deferred {
+                Future() { promise in
+                    DispatchQueue.global(qos: .userInteractive).async {
+                        
+                        // Sample vector is the vector used to check if contains at least one of the previous tokens
+                        let sample_pair = result.matrix[row: row].enumerated()
+                            //.filter {target_offsets.contains($0.offset)}
+                            //.filter {$0.element != 0.0 || $0.offset == token_x || $0.offset == token_y}
+                        
+                        
+                        let sample_vector = sample_pair.map(\.element)
+                        //print("sample_vector: \(sample_vector)")
+                        
+                        let tp = Double(zip(target_vector, sample_vector).filter { $0 > 0 && $1 > 0 }.count)
+                        let fp = Double(zip(target_vector, sample_vector).filter { $0 == 0.0 && $1 > 0 }.count)
+                        let fn = Double(zip(target_vector, sample_vector).filter { $0 > 0 && $1 == 0.0 }.count)
+                        
+//                        let tn = Double(zip(target_vector, sample_vector).filter { $0 == 0 && $1 == 0 }.count )
+//                        let accuracy_inv = 1.0 - (tp + tn) / (tp + tn + fp + fn)
+                        
+                        let f1_score_inv = 1.0 - (tp / (tp + (fp + fn)/2.0))
+                        
+//                        let mcc_1 = ((tp * tn) - (fp * fn))
+//                        let mcc_2 = sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+//                        let mcc = mcc_1 / mcc_2
+                        
+                        guard sample_vector.count > 0 else {
+                            promise(.success(ResultGroup(similarity: 1.0, article: result.articles[row], row: row)))
+                            return
+                        }
+                        
+                        let custom_target_vector = sample_pair.map {target_vector[$0.offset]}
+                        
+                        let custom_target_norm = sqrt(custom_target_vector.map {pow($0, 2)}.reduce(0.0, +))
+                        // recompute norm
+                        let div = custom_target_norm * sqrt(Double(sample_vector.filter {$0 > 0}.count))
+
+                        guard div > 0.0 else {
+                            promise(.success(ResultGroup(similarity: 1.0, article: result.articles[row], row: row)))
+                            return
+                        }
+
+                        
+                        let row_result =  f1_score_inv //accuracy_inv //mcc //1.0 - (dot(sample_vector, custom_target_vector) / div)
+                        
+                        let resultGroup = ResultGroup(similarity: row_result.isNaN ? 1.0 : row_result,
+                                                      article: result.articles[row],
+                                                      row: row)
+                        
+                        promise(.success(resultGroup))
+                    }
+                }
+            }
+        }
+        
+        return Publishers.MergeMany(tasks).eraseToAnyPublisher()
+        
     }
     
     
@@ -564,6 +700,22 @@ public struct Cluster {
             .flatMap(UnsupervisedTextClassifier.statsPublisher(result:))
             .flatMap(UnsupervisedTextClassifier.correlationMatrixPublisher(result:))
             .multiplier(UnsupervisedTextClassifier.sortingResults(result:conf:))
+            .eraseToAnyPublisher()
+    }
+
+    public var clusterPublisher: AnyPublisher<SegmentResultGroup, Never> {
+        Just(self)
+            .flatMap(UnsupervisedTextClassifier.statsPublisher(result:))
+            .flatMap(UnsupervisedTextClassifier.correlationMatrixPublisher(result:))
+            .flatMap(UnsupervisedTextClassifier.sortingResults(result:))
+            .eraseToAnyPublisher()
+    }
+    
+    func tokenSimilarities(tokenIndex: Int) -> AnyPublisher<ResultGroup, Never> {
+        Just(self)
+            .flatMap {
+                UnsupervisedTextClassifier.sortingResults(result:$0, tokenIndex: tokenIndex)
+            }
             .eraseToAnyPublisher()
     }
 }

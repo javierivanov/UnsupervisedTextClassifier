@@ -44,7 +44,7 @@ The Cluster struct publishes the `SegmentResultGroup` which contains the grouppe
 
 #### Articles ingestion example
 
-```
+```swift
 @Published var segmentResults: [SegmentResultGroup] = []
 
 let sampleHeadlines = ["How many people can I have a drink with? And other questions",
@@ -72,7 +72,7 @@ cluster
 
 Each `SegmentResultGroup` represents a cluster with similar elements based on keywords matching.
 
-```
+```swift
 struct ResultGroup: Identifiable {
     public var similarity: Double
     public var article: Article
