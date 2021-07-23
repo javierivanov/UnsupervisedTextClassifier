@@ -711,7 +711,7 @@ public struct Cluster {
             .eraseToAnyPublisher()
     }
     
-    func tokenSimilarities(tokenIndex: Int) -> AnyPublisher<ResultGroup, Never> {
+    public func tokenSimilarities(tokenIndex: Int) -> AnyPublisher<ResultGroup, Never> {
         Just(self)
             .flatMap {
                 UnsupervisedTextClassifier.sortingResults(result:$0, tokenIndex: tokenIndex)
