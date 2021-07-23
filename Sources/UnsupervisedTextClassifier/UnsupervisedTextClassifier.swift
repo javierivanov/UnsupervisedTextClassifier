@@ -310,7 +310,7 @@ public class UnsupervisedTextClassifier {
 
     
 //     MARK: - Sorting Results with repetition -
-    static func sortingResults(result: Cluster, tokenIndex: Int) -> AnyPublisher<ResultGroup, Never> {
+    static func sortingResults(result: Cluster, tokenIndex: Array<CorrelationResult>.Index) -> AnyPublisher<ResultGroup, Never> {
         guard tokenIndex < result.correlation!.count else {
             fatalError()
         }
@@ -711,7 +711,7 @@ public struct Cluster {
             .eraseToAnyPublisher()
     }
     
-    public func tokenSimilarities(tokenIndex: Int) -> AnyPublisher<ResultGroup, Never> {
+    public func tokenSimilarities(tokenIndex: Array<CorrelationResult>.Index) -> AnyPublisher<ResultGroup, Never> {
         Just(self)
             .flatMap {
                 UnsupervisedTextClassifier.sortingResults(result:$0, tokenIndex: tokenIndex)
