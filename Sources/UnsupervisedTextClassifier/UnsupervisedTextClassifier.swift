@@ -161,8 +161,9 @@ public class UnsupervisedTextClassifier {
     
     static func sortingResults(result: Cluster) -> AnyPublisher<SegmentResultGroup, Never> {
         guard let correlations = result.correlation else {fatalError()}
-        let tasks = correlations.map { correlation -> Deferred<Future<SegmentResultGroup, Never>> in
-            Deferred {
+        let tasks = correlations.indices.map { correlationIndex -> Deferred<Future<SegmentResultGroup, Never>> in
+            let correlation = correlations[correlationIndex]
+            return Deferred {
                 Future() { promise in
                     DispatchQueue.global(qos: .userInteractive).async {
                         // Target Group AVG with similar vectors.
@@ -195,7 +196,7 @@ public class UnsupervisedTextClassifier {
                         
                         
                         let tokens = (a: result.keywords[correlation.tokens.a], b: result.keywords[correlation.tokens.b])
-                        let segment = SegmentResultGroup(correlation: correlation, tokens: tokens, resultGroup: groups)
+                        let segment = SegmentResultGroup(correlationIndex: correlationIndex, tokens: tokens, resultGroup: groups)
                         promise(.success(segment))
                     }
                 }
@@ -206,7 +207,7 @@ public class UnsupervisedTextClassifier {
     }
     
     
-    typealias SortingClosestConf = (corrIdx: Int, rows: Set<Int>)
+    typealias SortingClosestConf = (corrIdx: Array<CorrelationResult>.Index, rows: Set<Int>)
     
     // MARK: - Sorting Closests -
     static func sortingResults(result: Cluster, conf: SortingClosestConf?) -> (conf: SortingClosestConf, output:SegmentResultGroup?) {
@@ -294,11 +295,11 @@ public class UnsupervisedTextClassifier {
                 
                 if filteredSimils.isEmpty {
                     if let single = simils.min(by: { $0.similarity < $1.similarity }) {
-                        ans = SegmentResultGroup(correlation: result.correlation![corrIdx], tokens: tokens, resultGroup: [single])
+                        ans = SegmentResultGroup(correlationIndex: corrIdx, tokens: tokens, resultGroup: [single])
                         rows.remove(single.row)
                     }
                 } else {
-                    ans = SegmentResultGroup(correlation: correlation, tokens: tokens, resultGroup: filteredSimils)
+                    ans = SegmentResultGroup(correlationIndex: corrIdx, tokens: tokens, resultGroup: filteredSimils)
                     filteredSimils.forEach { rows.remove($0.row) }
                 }
             }
@@ -667,7 +668,7 @@ public struct ResultGroup: Identifiable {
 
 public struct SegmentResultGroup: Identifiable {
     public var id = UUID()
-    public var correlation: CorrelationResult
+    public var correlationIndex: Array<CorrelationResult>.Index
     public var tokens: (a: String, b: String)
     public var resultGroup: [ResultGroup]
 }
