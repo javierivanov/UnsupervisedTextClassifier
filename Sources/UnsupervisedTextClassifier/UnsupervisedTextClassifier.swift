@@ -683,6 +683,7 @@ public struct Cluster {
     public var correlation: [CorrelationResult]?
     var q: Double?
     var maxSimilarity: Double
+    public var segmentResultGroup: [SegmentResultGroup]?
     
     public init(articles: [Article], maxSimilarity: Double = 0.5) {
         let all_keywords = articles.map(\.keywords).reduce(Set<String>(), { prev, curr in
@@ -704,12 +705,17 @@ public struct Cluster {
             .eraseToAnyPublisher()
     }
 
-    public var clusterPublisher: AnyPublisher<SegmentResultGroup, Never> {
-        Just(self)
+    public var clusterPublisher: Publishers.Zip<AnyPublisher<Cluster, Never>, AnyPublisher<[SegmentResultGroup], Never>> {
+        let connectable = Just(self)
             .flatMap(UnsupervisedTextClassifier.statsPublisher(result:))
             .flatMap(UnsupervisedTextClassifier.correlationMatrixPublisher(result:))
-            .flatMap(UnsupervisedTextClassifier.sortingResults(result:))
-            .eraseToAnyPublisher()
+            .share()
+            .makeConnectable()
+        let cluster = connectable.eraseToAnyPublisher()
+        let segments = connectable.multiplier(UnsupervisedTextClassifier.sortingResults(result:conf:)).collect().eraseToAnyPublisher()
+        let zipped = Publishers.Zip(cluster, segments)
+        _ = connectable.connect()
+        return zipped
     }
     
     public func tokenSimilarities(tokenIndex: Array<CorrelationResult>.Index) -> AnyPublisher<ResultGroup, Never> {
