@@ -159,9 +159,9 @@ public class UnsupervisedTextClassifier {
     }
     
     
-    static func sortingResults(result: Cluster) -> AnyPublisher<SegmentResultGroup, Never> {
+    static func sortingResults(result: Cluster) -> AnyPublisher<SegmentResultGroup, Error> {
         guard let correlations = result.correlation else {fatalError()}
-        let tasks = correlations.indices.map { correlationIndex -> Deferred<Future<SegmentResultGroup, Never>> in
+        let tasks = correlations.indices.map { correlationIndex -> Deferred<Future<SegmentResultGroup, Error>> in
             let correlation = correlations[correlationIndex]
             return Deferred {
                 Future() { promise in
@@ -225,7 +225,7 @@ public class UnsupervisedTextClassifier {
         let targetMatrix = Self.filterRows(matrix: result.matrix, cols: (token_x, token_y))
         let target_vector = Self.avgMatrixToVector(matrix: targetMatrix)
         
-        let tasks = rows.map { row -> Deferred<Future<ResultGroup,Never>> in
+        let tasks = rows.map { row -> Deferred<Future<ResultGroup, Error>> in
             return Deferred {
                 Future() { promise in
                     DispatchQueue.global(qos: .userInteractive).async {
@@ -698,24 +698,17 @@ public struct Cluster {
     }
     
     public var publisher: AnyPublisher<SegmentResultGroup, Never> {
-        Just(self)
-            .flatMap(UnsupervisedTextClassifier.statsPublisher(result:))
-            .flatMap(UnsupervisedTextClassifier.correlationMatrixPublisher(result:))
+        precondition(self.correlation != nil, "Correlation was not computed")
+        return Just(self)
             .multiplier(UnsupervisedTextClassifier.sortingResults(result:conf:))
             .eraseToAnyPublisher()
     }
 
-    public var clusterPublisher: Publishers.Zip<AnyPublisher<Cluster, Never>, AnyPublisher<[SegmentResultGroup], Never>> {
-        let connectable = Just(self)
+    public var clusterPublisher: AnyPublisher<Cluster, Never> {
+        Just(self)
             .flatMap(UnsupervisedTextClassifier.statsPublisher(result:))
             .flatMap(UnsupervisedTextClassifier.correlationMatrixPublisher(result:))
-            .share()
-            .makeConnectable()
-        let cluster = connectable.eraseToAnyPublisher()
-        let segments = connectable.multiplier(UnsupervisedTextClassifier.sortingResults(result:conf:)).collect().eraseToAnyPublisher()
-        let zipped = Publishers.Zip(cluster, segments)
-        _ = connectable.connect()
-        return zipped
+            .eraseToAnyPublisher()
     }
     
     public func tokenSimilarities(tokenIndex: Array<CorrelationResult>.Index) -> AnyPublisher<ResultGroup, Never> {
