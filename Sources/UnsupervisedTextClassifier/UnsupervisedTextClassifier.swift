@@ -34,7 +34,7 @@ public class UnsupervisedTextClassifier {
         let options: NLTagger.Options = [.omitPunctuation, .omitWhitespace, .joinNames, .omitOther]
         
         let staticTags: [NLTag] = [.personalName, .placeName, .organizationName]
-        let lowerTags: [NLTag] = [.noun, .adjective]
+        let lowerTags: [NLTag] = [.noun]
         let tags = userTags + staticTags + lowerTags
         
         tagger.enumerateTags(in: text.startIndex..<text.endIndex,
@@ -683,7 +683,6 @@ public struct Cluster {
     public var correlation: [CorrelationResult]?
     var q: Double?
     var maxSimilarity: Double
-    public var segmentResultGroup: [SegmentResultGroup]?
     
     public init(articles: [Article], maxSimilarity: Double = 0.5) {
         let all_keywords = articles.map(\.keywords).reduce(Set<String>(), { prev, curr in
